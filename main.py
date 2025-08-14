@@ -2,6 +2,9 @@ import os
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from supabase import create_client, Client
+from app.routers.loop_webhook import router as loop_router
+from app.routers.health import router as health_router
+from app.routers.agent_test import router as agent_test_router
 
 load_dotenv()
 
@@ -21,3 +24,14 @@ async def root():
         "message": "Welcome to FastAPI!",
         "data": data.data[0]["name"],
     }
+
+
+# Include routers if available
+if loop_router is not None:
+    app.include_router(loop_router)
+
+if health_router is not None:
+    app.include_router(health_router)
+
+if agent_test_router is not None:
+    app.include_router(agent_test_router)
