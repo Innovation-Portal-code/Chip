@@ -1,29 +1,42 @@
 ---
-title: FastAPI
-description: A FastAPI server
-tags:
-  - fastapi
-  - hypercorn
-  - python
----
+title: Chip the Alabama Tech Community AI Agent
 
-# FastAPI Example
+This project uses uv as its package manager.
 
-This example starts up a [FastAPI](https://fastapi.tiangolo.com/) server.
+to install the dependencies, run the following command:
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/-NvLj4?referralCode=CRJ8FE)
-## ✨ Features
+```bash
+uv sync
+```
 
-- FastAPI
-- [Hypercorn](https://hypercorn.readthedocs.io/)
-- Python 3
+to add a new dependency, run the following command:
 
-## 💁‍♀️ How to use
+```bash
+uv add <dependency>
+```
 
-- Clone locally and install packages with pip using `pip install -r requirements.txt`
-- Run locally using `hypercorn main:app --reload`
+to remove a dependency, run the following command:
 
-## 📝 Notes
+```bash
+uv remove <dependency>
+```
 
-- To learn about how to use FastAPI with most of its features, you can visit the [FastAPI Documentation](https://fastapi.tiangolo.com/tutorial/)
-- To learn about Hypercorn and how to configure it, read their [Documentation](https://hypercorn.readthedocs.io/)
+to update a dependency, run the following command:
+
+```bash
+uv update <dependency>
+```
+
+to export the requirements.txt file, run the following command:
+
+```bash
+uv export --no-hashes -o requirements.txt
+```
+
+to run the debugger ro this project you need to run the following command:
+
+```bash
+python -m debugpy --listen 5678 --wait-for-client \
+-m hypercorn main:app --reload --log-level debug
+```
+and to use the launch.json provided in this project.
