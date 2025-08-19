@@ -4,6 +4,9 @@ from typing import Any, Optional
 from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel
 
+from app.adapters.loop import LoopClient
+from app.agents.dspy_agent import generate_reply
+
 
 router = APIRouter(prefix="", tags=["loop"])
 
@@ -46,6 +49,25 @@ async def loop_webhook(
         conversation_id = (
             group.get("group_id") if isinstance(group, dict) else message_id
         )
+
+        # Generate an LLM reply (M3) — persona embedded in DSPy module
+        try:
+            reply_text = generate_reply(user_message=text)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Agent error: {e}")
+
+        # Send reply via Loop
+        try:
+            lc = LoopClient()
+            send_res = lc.send_text(
+                recipient=recipient,
+                text=reply_text,
+                group_id=conversation_id,
+                reply_to_id=message_id,
+            )
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Loop send error: {e}")
+
         return {
             "ok": True,
             "alert_type": alert_type,
@@ -53,6 +75,7 @@ async def loop_webhook(
             "message_id": message_id,
             "received_text": text,
             "conversation_id": conversation_id,
+            "sent": send_res,
         }
 
     # Otherwise, support the internal event/data/message shape used for local testing
@@ -69,11 +92,18 @@ async def loop_webhook(
         event.data.get("conversationId") if isinstance(event.data, dict) else None
     )
 
-    # M1 behavior: acknowledge and echo basic info
+    # Generate an LLM reply (M3) for internal test payload shape — persona embedded
+    try:
+        reply_text = generate_reply(user_message=text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Agent error: {e}")
+
+    # Without a documented recipient for internal shape, we can't send. Echo only.
     return {
         "ok": True,
         "received_text": text,
         "conversation_id": conversation_id,
+        "reply": reply_text,
     }
 
 

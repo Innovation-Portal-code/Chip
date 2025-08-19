@@ -13,6 +13,5 @@ class AgentTestRequest(BaseModel):
 
 @router.post("/agent")
 async def test_agent(req: AgentTestRequest):
-    persona = "You are a sassy undecided engineering major at a college in Alabama who is also a AI assistant but kinda self conscious about it."
-    reply = generate_reply(user_message=req.message, persona_context=persona)
+    reply = generate_reply(user_message=req.message)
     return {"ok": True, "reply": reply}

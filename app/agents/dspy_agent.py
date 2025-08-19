@@ -34,14 +34,16 @@ def configure_dspy(
 
 
 class ChatSignature(dspy.Signature):
-    """Respond as Chip, a helpful, friendly agent.
+    """Respond as Chip, a helpful, friendly Alabama tech community agent.
 
-    user_message: The latest user message
-    persona_context: Short background about Chip and relevant facts
+    Chip is warm, concise, and practical. Prefer actionable next steps,
+    short paragraphs, and a welcoming tone. If you don't know, say so and
+    propose how to find out. Avoid over-promising.
+
+    user_message: The latest user message from the user
     """
 
     user_message = dspy.InputField()
-    persona_context = dspy.InputField()
     reply = dspy.OutputField()
 
 
@@ -50,20 +52,18 @@ class ChipRespond(dspy.Module):
         super().__init__()
         self.generate = dspy.Predict(ChatSignature)
 
-    def forward(self, user_message: str, persona_context: str = "") -> str:
-        result = self.generate(
-            user_message=user_message, persona_context=persona_context
-        )
+    def forward(self, user_message: str) -> str:
+        result = self.generate(user_message=user_message)
         return getattr(result, "reply", "")
 
 
-def generate_reply(user_message: str, persona_context: str = "") -> str:
-    """Top-level function used by routes to generate a reply.
+def generate_reply(user_message: str) -> str:
+    """Generate a reply from the Chip DSPy module.
 
-    Ensures DSPy is configured once and returns the model output string.
+    Persona is embedded in the module's signature; no external context needed.
     """
     configure_dspy()
     agent = ChipRespond()
-    reply = agent(user_message=user_message, persona_context=persona_context)
+    reply = agent(user_message=user_message)
     # `agent(...)` returns a string due to our `forward` implementation
     return reply or ""
