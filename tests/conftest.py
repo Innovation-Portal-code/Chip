@@ -19,5 +19,3 @@ def _env_isolation(monkeypatch: pytest.MonkeyPatch) -> t.Iterator[None]:
 @pytest.fixture()
 def client() -> TestClient:
     return TestClient(app)
-
-

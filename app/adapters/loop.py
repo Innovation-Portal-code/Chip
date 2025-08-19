@@ -18,7 +18,9 @@ class LoopClient:
     Ref: LoopMessage-iMessage-API-Mock-Spec.md
     """
 
-    def __init__(self, base_url: Optional[str] = None, api_key: Optional[str] = None) -> None:
+    def __init__(
+        self, base_url: Optional[str] = None, api_key: Optional[str] = None
+    ) -> None:
         settings = get_settings()
         self.base_url = base_url or settings.LOOP_API_BASE_URL
         self.api_key = api_key or settings.LOOP_API_KEY
@@ -62,8 +64,12 @@ class LoopAdapter(MessagingAdapter):
             delivery_type=payload.get("delivery_type"),
             reaction=payload.get("reaction"),
             sandbox=payload.get("sandbox"),
-            group_id=(payload.get("group") or {}).get("group_id") if payload.get("group") else None,
-            group_name=(payload.get("group") or {}).get("name") if payload.get("group") else None,
+            group_id=(payload.get("group") or {}).get("group_id")
+            if payload.get("group")
+            else None,
+            group_name=(payload.get("group") or {}).get("name")
+            if payload.get("group")
+            else None,
             attachments=payload.get("attachments"),
             raw=payload,
         )
@@ -74,27 +80,35 @@ class LoopAdapter(MessagingAdapter):
             "sender_name": os.environ.get("LOOP_SENDER_NAME", "sender@example.com"),
         }
         if message.group_id:
-            payload.update({
-                "text": message.text or "",
-                "group": {"group_id": message.group_id},
-            })
+            payload.update(
+                {
+                    "text": message.text or "",
+                    "group": {"group_id": message.group_id},
+                }
+            )
         elif message.reaction:
-            payload.update({
-                "reaction": message.reaction,
-                "reply_to_id": message.reply_to_id,
-                "recipient": message.to,
-            })
+            payload.update(
+                {
+                    "reaction": message.reaction,
+                    "reply_to_id": message.reply_to_id,
+                    "recipient": message.to,
+                }
+            )
         elif message.audio_url:
-            payload.update({
-                "audio": {"url": message.audio_url},
-                "text": message.text or "",
-                "recipient": message.to,
-            })
+            payload.update(
+                {
+                    "audio": {"url": message.audio_url},
+                    "text": message.text or "",
+                    "recipient": message.to,
+                }
+            )
         else:
-            payload.update({
-                "text": message.text or "",
-                "recipient": message.to,
-            })
+            payload.update(
+                {
+                    "text": message.text or "",
+                    "recipient": message.to,
+                }
+            )
 
         if message.passthrough:
             payload["passthrough"] = message.passthrough
@@ -111,4 +125,3 @@ class LoopAdapter(MessagingAdapter):
         # Accept common casings
         auth = headers.get("Authorization") or headers.get("authorization")
         return auth == secret
-

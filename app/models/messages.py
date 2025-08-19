@@ -34,5 +34,3 @@ class OutgoingMessage(BaseModel):
     group_id: Optional[str] = None
     audio_url: Optional[str] = None
     reaction: Optional[str] = None
-
-

@@ -57,7 +57,9 @@ def test_loop_adapter_send_reaction() -> None:
 
 def test_loop_adapter_send_audio() -> None:
     adapter = LoopAdapter(client=DummyClient())
-    out = OutgoingMessage(to="+1555", audio_url="https://example.com/a.m4a", text="(voice note)")
+    out = OutgoingMessage(
+        to="+1555", audio_url="https://example.com/a.m4a", text="(voice note)"
+    )
     resp = adapter.send_message(out)
     echo = resp["echo"]
     assert echo["audio"]["url"].endswith("a.m4a")
@@ -72,5 +74,3 @@ def test_loop_adapter_send_group() -> None:
     echo = resp["echo"]
     assert echo["group"]["group_id"] == "g-1"
     assert echo["text"] == "Welcome"
-
-

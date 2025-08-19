@@ -39,13 +39,16 @@ def get_settings() -> Settings:
         _cached_settings = Settings(
             groq_api_key=os.environ.get("GROQ_API_KEY"),
             groq_model=os.environ.get("GROQ_MODEL", "llama-3.1-70b-versatile"),
-            openai_api_base=os.environ.get("OPENAI_API_BASE", "https://api.groq.com/openai/v1"),
-            loop_api_base_url=os.environ.get("LOOP_API_BASE_URL", "https://server.loopmessage.com/api/v1"),
+            openai_api_base=os.environ.get(
+                "OPENAI_API_BASE", "https://api.groq.com/openai/v1"
+            ),
+            loop_api_base_url=os.environ.get(
+                "LOOP_API_BASE_URL", "https://server.loopmessage.com/api/v1"
+            ),
             loop_api_key=os.environ.get("LOOP_API_KEY"),
             loop_webhook_secret=os.environ.get("LOOP_WEBHOOK_SECRET"),
-            use_dspy=os.environ.get("USE_DSPY", "false").lower() in {"1", "true", "yes"},
+            use_dspy=os.environ.get("USE_DSPY", "false").lower()
+            in {"1", "true", "yes"},
             environment=os.environ.get("ENV", "dev"),
         )
     return _cached_settings
-
-

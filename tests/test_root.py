@@ -7,5 +7,3 @@ def test_root(client: TestClient) -> None:
     data = r.json()
     assert data.get("greeting") == "Hello, World!"
     assert "Welcome to FastAPI" in data.get("message", "")
-
-

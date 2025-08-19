@@ -42,5 +42,3 @@ def test_webhook_inbound_echo_reply(monkeypatch, client: TestClient) -> None:
     out = captured.sent_payloads[0]
     assert out["recipient"] == "+13231112233"
     assert isinstance(out["text"], str) and len(out["text"]) > 0
-
-

@@ -30,8 +30,8 @@ def test_signature_enforced(monkeypatch, client: TestClient) -> None:
     assert r.json()["ok"] is False
 
     # Now include correct header to pass verification
-    r2 = client.post("/webhooks/loop", json=payload, headers={"Authorization": "s3cr3t"})
+    r2 = client.post(
+        "/webhooks/loop", json=payload, headers={"Authorization": "s3cr3t"}
+    )
     assert r2.status_code == 200
     assert r2.json()["ok"] is True
-
-

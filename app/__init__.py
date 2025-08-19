@@ -2,4 +2,3 @@
 
 Exposes FastAPI routers and adapters via subpackages.
 """
-

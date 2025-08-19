@@ -27,5 +27,3 @@ class MessagingAdapter(ABC):
 
     def verify_signature(self, headers: Dict[str, str], body_bytes: bytes) -> bool:
         return True
-
-

@@ -76,5 +76,3 @@ def test_loop_normalize_various(payload: Dict[str, Any]) -> None:
     # Ensure doesn't crash and captures base fields when present
     if "recipient" in payload:
         assert msg.recipient_address == payload["recipient"]
-
-
