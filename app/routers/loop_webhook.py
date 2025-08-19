@@ -4,8 +4,8 @@ from typing import Any, Optional
 from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel
 
-from app.adapters.loop import LoopClient
-from app.agents.dspy_agent import generate_reply
+from app.adapters.registry import AdapterRegistry
+from app.agents import dspy_agent as agent_module
 
 
 router = APIRouter(prefix="", tags=["loop"])
@@ -31,79 +31,47 @@ async def loop_webhook(
     request: Request,
     authorization: str | None = Header(default=None, convert_underscores=False),
 ):
-    expected = os.getenv("LOOP_WEBHOOK_AUTH")
-    if expected:
-        if not authorization or authorization != expected:
-            raise HTTPException(status_code=401, detail="Unauthorized webhook")
+    adapter = AdapterRegistry.get("loop")
+
+    # Verify webhook
+    try:
+        adapter.verify_request(authorization)
+    except PermissionError:
+        raise HTTPException(status_code=401, detail="Unauthorized webhook")
 
     body = await request.json()
+    normalized = adapter.normalize_event(body if isinstance(body, dict) else {})
 
-    # Best-effort normalization for logging and M1 echo behavior
-    # Handle Loop's documented schema first (alert_type, text, recipient, ...)
-    if isinstance(body, dict) and body.get("alert_type"):
-        alert_type = body.get("alert_type")
-        text = body.get("text", "")
-        recipient = body.get("recipient")
-        message_id = body.get("message_id")
-        group = body.get("group") if isinstance(body.get("group"), dict) else None
-        conversation_id = (
-            group.get("group_id") if isinstance(group, dict) else message_id
-        )
+    text = normalized.get("text", "")
+    recipient = normalized.get("recipient")
+    message_id = normalized.get("message_id")
+    conversation_id = normalized.get("group_id") or message_id
 
-        # Generate an LLM reply (M3) — persona embedded in DSPy module
+    # Generate reply
+    try:
+        reply_text = agent_module.generate_reply(user_message=text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Agent error: {e}")
+
+    # If we have a recipient, attempt to send via adapter
+    sent = None
+    if recipient:
         try:
-            reply_text = generate_reply(user_message=text)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Agent error: {e}")
-
-        # Send reply via Loop
-        try:
-            lc = LoopClient()
-            send_res = lc.send_text(
+            sent = adapter.send_text(
                 recipient=recipient,
                 text=reply_text,
                 group_id=conversation_id,
                 reply_to_id=message_id,
             )
         except Exception as e:
-            raise HTTPException(status_code=502, detail=f"Loop send error: {e}")
+            raise HTTPException(status_code=502, detail=f"Send error: {e}")
 
-        return {
-            "ok": True,
-            "alert_type": alert_type,
-            "recipient": recipient,
-            "message_id": message_id,
-            "received_text": text,
-            "conversation_id": conversation_id,
-            "sent": send_res,
-        }
-
-    # Otherwise, support the internal event/data/message shape used for local testing
-    try:
-        event = LoopEvent.model_validate(body)
-    except Exception:
-        event = LoopEvent(event=str(body.get("event", "")), data=body.get("data", {}))
-
-    message: dict[str, Any] = (
-        event.data.get("message", {}) if isinstance(event.data, dict) else {}
-    )
-    text: str = message.get("text", "")
-    conversation_id: str | None = (
-        event.data.get("conversationId") if isinstance(event.data, dict) else None
-    )
-
-    # Generate an LLM reply (M3) for internal test payload shape — persona embedded
-    try:
-        reply_text = generate_reply(user_message=text)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Agent error: {e}")
-
-    # Without a documented recipient for internal shape, we can't send. Echo only.
     return {
         "ok": True,
         "received_text": text,
         "conversation_id": conversation_id,
         "reply": reply_text,
+        "sent": sent,
     }
 
 

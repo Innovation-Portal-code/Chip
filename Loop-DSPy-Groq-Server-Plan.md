@@ -409,6 +409,20 @@ curl -X POST http://localhost:8000/webhooks/loop \
 - Unit: LoopClient builds requests and handles errors (use `respx` or `httpx.MockTransport`)
 - Contract: POST webhook with sample payload triggers LoopClient call
 
+### Implemented test matrix
+
+- Health endpoint and root route behavior without Supabase
+- Loop adapter send_text for individual and group, including reply_to_id, passthrough, service, timeout
+- Loop adapter normalization for native Loop webhooks and internal testing shape
+- Adapter registry get/register/unknown cases
+- Webhook route:
+  - Authorization required
+  - Happy path for native inbound event including outbound send
+  - Internal testing shape with and without recipient
+  - Agent failure surfaces 500, send failure surfaces 502
+
+LLM interactions are stubbed via a small context manager in `tests/conftest.py` to avoid network I/O.
+
 ---
 
 ## Extensibility: adapters, tools, sub-agents

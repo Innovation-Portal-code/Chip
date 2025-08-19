@@ -8,22 +8,29 @@ from app.routers.agent_test import router as agent_test_router
 
 load_dotenv()
 
-url: str = os.environ.get("SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_KEY")
-supabase: Client = create_client(url, key)
+url: str | None = os.environ.get("SUPABASE_URL")
+key: str | None = os.environ.get("SUPABASE_KEY")
+supabase: Client | None = None
+if url and key:
+    try:
+        supabase = create_client(url, key)
+    except Exception:
+        supabase = None
 
 app = FastAPI()
 
 
 @app.get("/")
 async def root():
-    data = supabase.table("talent").select("*").execute()
-    print(data.data[0]["name"])
-    return {
-        "greeting": "Hello, World!",
-        "message": "Welcome to FastAPI!",
-        "data": data.data[0]["name"],
-    }
+    name = None
+    if supabase is not None:
+        try:
+            data = supabase.table("talent").select("*").execute()
+            if data.data:
+                name = data.data[0].get("name")
+        except Exception:
+            name = None
+    return {"greeting": "Hello, World!", "message": "Welcome to FastAPI!", "data": name}
 
 
 # Include routers if available

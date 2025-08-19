@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.agents.dspy_agent import generate_reply
+from app.agents import dspy_agent as agent_module
 
 
 router = APIRouter(prefix="/test", tags=["test"])
@@ -13,5 +13,5 @@ class AgentTestRequest(BaseModel):
 
 @router.post("/agent")
 async def test_agent(req: AgentTestRequest):
-    reply = generate_reply(user_message=req.message)
+    reply = agent_module.generate_reply(user_message=req.message)
     return {"ok": True, "reply": reply}

@@ -3,11 +3,14 @@ from typing import Any, Dict, Optional
 
 import httpx
 
+from app.adapters.base import MessagingAdapter
 
-class LoopClient:
-    """Minimal client for LoopMessage send API.
+
+class LoopClient(MessagingAdapter):
+    """LoopMessage adapter implementing the MessagingAdapter protocol.
 
     Sends text messages to an individual recipient (phone/email) or a group.
+    Also provides webhook verification and normalization helpers.
     """
 
     def __init__(self) -> None:
@@ -19,6 +22,7 @@ class LoopClient:
         self.sender_name = os.environ.get("LOOP_SENDER_NAME", "")
         self.status_callback = os.environ.get("STATUS_CALLBACK_URL")
         self.status_callback_auth = os.environ.get("STATUS_CALLBACK_AUTH")
+        self.webhook_auth = os.environ.get("LOOP_WEBHOOK_AUTH")
 
     def _headers(self) -> Dict[str, str]:
         headers: Dict[str, str] = {
@@ -77,3 +81,35 @@ class LoopClient:
             response = client.post(self.send_url, headers=self._headers(), json=payload)
             response.raise_for_status()
             return response.json()
+
+    # Webhook helpers
+    def verify_request(self, authorization_header: Optional[str]) -> None:
+        if not self.webhook_auth:
+            return
+        if not authorization_header or authorization_header != self.webhook_auth:
+            raise PermissionError("Unauthorized webhook")
+
+    def normalize_event(self, body: Dict[str, Any]) -> Dict[str, Any]:
+        # Native Loop webhook shape
+        if isinstance(body, dict) and body.get("alert_type"):
+            group = body.get("group") if isinstance(body.get("group"), dict) else None
+            return {
+                "alert_type": body.get("alert_type"),
+                "text": body.get("text", ""),
+                "recipient": body.get("recipient"),
+                "message_id": body.get("message_id"),
+                "group_id": group.get("group_id") if isinstance(group, dict) else None,
+            }
+
+        # Internal testing shape from plan
+        data = body.get("data", {}) if isinstance(body, dict) else {}
+        message = data.get("message", {}) if isinstance(data, dict) else {}
+        return {
+            "alert_type": body.get("event"),
+            "text": message.get("text", ""),
+            "recipient": message.get("from", {}).get("address")
+            if isinstance(message.get("from"), dict)
+            else None,
+            "message_id": message.get("id"),
+            "group_id": data.get("conversationId") if isinstance(data, dict) else None,
+        }
