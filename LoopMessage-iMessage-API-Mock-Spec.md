@@ -335,6 +335,13 @@ References: [Webhooks/Callbacks](https://docs.loopmessage.com/imessage-conversat
 - Keep recipient identifiers masked in logs. Avoid logging full E164 values.
 - Make the mock deterministic by default; add chaos flags to randomize failures/timeouts.
 
+## Test Coverage Implemented in Repo
+
+- Normalization of native Loop webhook shape and internal testing shape
+- Verification via `Authorization` header for inbound webhooks
+- Outbound send payload combinations validated against examples using `respx` to assert HTTP
+- Scenario stubs for message inbound → immediate reply/send
+
 References:
 - [Webhooks/Callbacks](https://docs.loopmessage.com/imessage-conversation-api/webhooks)
 - [Sending Messages](https://docs.loopmessage.com/imessage-conversation-api/send-message)
