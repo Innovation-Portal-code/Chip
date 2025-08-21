@@ -46,6 +46,12 @@
 hypercorn main:app --reload --log-level debug
 ```
 
+## Starting the app on Railway
+
+```bash
+hypercorn main:app --bind \"[::]:$PORT\"
+```
+
 ## Running tests
 
 ```bash
