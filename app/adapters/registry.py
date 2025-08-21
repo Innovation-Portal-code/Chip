@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict
 
-from app.adapters.base import MessagingAdapter
+from app.types import MessagingAdapter
 from app.adapters.loop import LoopClient
 
 
@@ -27,4 +27,3 @@ class AdapterRegistry:
     @classmethod
     def register(cls, name: str, adapter_cls: type[MessagingAdapter]) -> None:
         cls._registry[name] = adapter_cls
-

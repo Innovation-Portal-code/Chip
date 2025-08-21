@@ -4,7 +4,7 @@ This document tracks design decisions and testing strategy as the messaging serv
 
 ## Adapter Abstraction
 
-- Introduced `app.adapters.base.MessagingAdapter` protocol to standardize provider interfaces.
+- Introduced `app.types` package consolidating enums, messages, results, events, and protocols. Prefer `from app.types import ...`.
 - Implemented `LoopClient` to conform to the protocol and added helpers:
   - `verify_request(authorization_header)` to enforce inbound webhook auth via env `LOOP_WEBHOOK_AUTH`.
   - `normalize_event(body)` to map inbound payloads into a common shape.

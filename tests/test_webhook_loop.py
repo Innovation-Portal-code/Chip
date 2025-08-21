@@ -6,18 +6,20 @@ import httpx
 import respx
 from fastapi.testclient import TestClient
 
-from app.adapters.loop import LoopClient
+from app.adapters.registry import AdapterRegistry
 from tests.conftest import override_generate_reply
 
 
 def loop_headers() -> Dict[str, str]:
-    return {"Authorization": "inbound-secret"}
+    return {"Authorization": "Bearer inbound-secret"}
 
 
 @respx.mock
 def test_loop_webhook_message_inbound_triggers_send(client: TestClient) -> None:
-    lc = LoopClient()
-    respx.post(lc.send_url).mock(return_value=httpx.Response(200, json={"message_id": "out-1"}))
+    adapter = AdapterRegistry.get("loop")
+    respx.post(adapter.send_endpoint()).mock(
+        return_value=httpx.Response(200, json={"message_id": "out-1"})
+    )
 
     payload: Dict[str, Any] = {
         "alert_type": "message_inbound",
@@ -40,14 +42,20 @@ def test_loop_webhook_message_inbound_triggers_send(client: TestClient) -> None:
 
 
 def test_loop_webhook_auth_required(client: TestClient) -> None:
-    r = client.post("/webhooks/loop", json={"alert_type": "message_inbound", "text": "x"})
+    r = client.post(
+        "/webhooks/loop", json={"alert_type": "message_inbound", "text": "x"}
+    )
     assert r.status_code == 401
 
 
 @respx.mock
-def test_loop_webhook_internal_shape_sends_when_recipient_present(client: TestClient) -> None:
-    lc = LoopClient()
-    respx.post(lc.send_url).mock(return_value=httpx.Response(200, json={"message_id": "out-2"}))
+def test_loop_webhook_internal_shape_sends_when_recipient_present(
+    client: TestClient,
+) -> None:
+    adapter = AdapterRegistry.get("loop")
+    respx.post(adapter.send_endpoint()).mock(
+        return_value=httpx.Response(200, json={"message_id": "out-2"})
+    )
 
     body = {
         "event": "message.created",
@@ -69,17 +77,20 @@ def test_loop_webhook_internal_shape_sends_when_recipient_present(client: TestCl
 
 
 @respx.mock
-def test_loop_webhook_internal_shape_no_recipient_does_not_send(client: TestClient) -> None:
-    lc = LoopClient()
+def test_loop_webhook_internal_shape_no_recipient_does_not_send(
+    client: TestClient,
+) -> None:
     # do not register respx route to ensure no outbound call attempted
 
     body = {
         "event": "message.created",
-        "data": {"conversationId": "conv_123", "message": {"id": "msg_abc", "text": "Hello"}},
+        "data": {
+            "conversationId": "conv_123",
+            "message": {"id": "msg_abc", "text": "Hello"},
+        },
     }
     with override_generate_reply("Echo!"):
         r = client.post("/webhooks/loop", headers=loop_headers(), json=body)
     assert r.status_code == 200
     data = r.json()
     assert data["sent"] is None
-

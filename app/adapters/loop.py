@@ -3,7 +3,17 @@ from typing import Any, Dict, Optional
 
 import httpx
 
-from app.adapters.base import MessagingAdapter
+from app.types import (
+    MessagingAdapter,
+    SendResult,
+    NormalizedEvent,
+    ReactionType,
+    MessageType,
+    OutboundMessage,
+    IMessageTextMessage,
+    IMessageReactionMessage,
+    IMessageAudioMessage,
+)
 
 
 class LoopClient(MessagingAdapter):
@@ -32,84 +42,129 @@ class LoopClient(MessagingAdapter):
         }
         return headers
 
-    def send_text(
-        self,
-        *,
-        recipient: Optional[str] = None,
-        text: str,
-        group_id: Optional[str] = None,
-        reply_to_id: Optional[str] = None,
-        passthrough: Optional[str] = None,
-        service: Optional[str] = None,  # "imessage" or "sms"
-        timeout_seconds: Optional[int] = None,
-    ) -> Dict[str, Any]:
-        """Send a text message via Loop.
+    # Compatibility helper for tests using endpoint discovery
+    def send_endpoint(self) -> str:  # type: ignore[override]
+        return self.send_url
 
-        Either `recipient` or `group_id` must be provided.
+    def _build_payload(self, message: OutboundMessage) -> Dict[str, Any]:
         """
+        Helper to unpack OutboundMessage into the payload for the LoopMessage REST API call.
+
+        See: https://docs.loopmessage.com/imessage-conversation-api/send-message#send-single-message
+        """
+        payload: Dict[str, Any] = {}
+
+        payload["sender_name"] = self.sender_name
+
+        if getattr(message, "group_id", None):
+            payload["group"] = message.group_id
+        elif getattr(message, "recipient", None):
+            payload["recipient"] = message.recipient
+
+        if self.status_callback:
+            payload["status_callback"] = self.status_callback
+        if self.status_callback_auth:
+            payload["status_callback_header"] = self.status_callback_auth
+        if getattr(message, "reply_to_id", None):
+            payload["reply_to_id"] = message.reply_to_id
+        if getattr(message, "passthrough", None):
+            payload["passthrough"] = message.passthrough
+        if getattr(message, "service", None):
+            payload["service"] = message.service.value
+        if getattr(message, "timeout_seconds", None) and message.timeout_seconds >= 5:
+            payload["timeout"] = message.timeout_seconds
+
+        if isinstance(message, IMessageTextMessage):
+            payload["text"] = message.text
+            if getattr(message, "attachments", None):
+                payload["attachments"] = message.attachments
+            if getattr(message, "subject", None):
+                payload["subject"] = message.subject
+            if getattr(message, "effect", None):
+                payload["effect"] = message.effect.value
+        elif isinstance(message, IMessageReactionMessage):
+            payload["reaction"] = message.reaction.value
+            payload["message_id"] = message.target_message_id
+            if "reply_to_id" in payload:
+                del payload["reply_to_id"]
+        elif isinstance(message, IMessageAudioMessage):
+            payload["media_url"] = message.media_url
+            if getattr(message, "text", None):
+                payload["text"] = message.text
+
+        return payload
+
+    def send_message(self, message: OutboundMessage) -> SendResult:  # type: ignore[override]
+        """Send a message via Loop using the extensible message object."""
         if not self.authorization or not self.secret_key:
             raise RuntimeError(
                 "Missing LOOP_AUTHORIZATION or LOOP_SECRET_KEY environment variables"
             )
         if not self.sender_name:
             raise RuntimeError("Missing LOOP_SENDER_NAME environment variable")
-        if not recipient and not group_id:
-            raise ValueError("Either recipient or group_id must be provided")
 
-        payload: Dict[str, Any] = {
-            "text": text,
-            "sender_name": self.sender_name,
-        }
-        if recipient:
-            payload["recipient"] = recipient
-        if group_id:
-            payload["group"] = {"group_id": group_id}
-        if self.status_callback:
-            payload["status_callback"] = self.status_callback
-        if self.status_callback_auth:
-            payload["status_callback_header"] = self.status_callback_auth
-        if reply_to_id:
-            payload["reply_to_id"] = reply_to_id
-        if passthrough:
-            payload["passthrough"] = passthrough
-        if service:
-            payload["service"] = service
-        if timeout_seconds and timeout_seconds >= 5:
-            payload["timeout"] = timeout_seconds
+        message.ensure_valid_target()
+
+        payload = self._build_payload(message)
+        print(payload)
 
         with httpx.Client(timeout=15) as client:
             response = client.post(self.send_url, headers=self._headers(), json=payload)
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            message_id = data.get("message_id") if isinstance(data, dict) else None
+            ok = data.get("ok") if isinstance(data, dict) else None
+            return SendResult(
+                message_id=message_id,
+                ok=ok,
+                data=data if isinstance(data, dict) else None,
+            )
 
     # Webhook helpers
     def verify_request(self, authorization_header: Optional[str]) -> None:
         if not self.webhook_auth:
             return
-        if not authorization_header or authorization_header != self.webhook_auth:
+        expected = self.webhook_auth
+        provided = authorization_header or ""
+        print("provided", provided)
+        print("expected", expected)
+        # Support raw secret or Bearer <secret>
+        if provided.startswith("Bearer "):
+            provided = provided[len("Bearer ") :]
+        if provided != expected:
             raise PermissionError("Unauthorized webhook")
 
-    def normalize_event(self, body: Dict[str, Any]) -> Dict[str, Any]:
+    def normalize_event(self, body: Dict[str, Any]) -> NormalizedEvent:
         # Native Loop webhook shape
         if isinstance(body, dict) and body.get("alert_type"):
             group = body.get("group") if isinstance(body.get("group"), dict) else None
-            return {
-                "alert_type": body.get("alert_type"),
-                "text": body.get("text", ""),
-                "recipient": body.get("recipient"),
-                "message_id": body.get("message_id"),
-                "group_id": group.get("group_id") if isinstance(group, dict) else None,
-            }
+            message_type = body.get("message_type")
+            reaction = body.get("reaction")
+            return NormalizedEvent(
+                alert_type=body.get("alert_type"),
+                text=body.get("text", ""),
+                recipient=body.get("recipient"),
+                message_id=body.get("message_id"),
+                group_id=group.get("group_id") if isinstance(group, dict) else None,
+                message_type=MessageType(message_type)
+                if isinstance(message_type, str)
+                and message_type in {m.value for m in MessageType}
+                else None,
+                reaction=ReactionType(reaction)
+                if isinstance(reaction, str)
+                and reaction in {r.value for r in ReactionType}
+                else None,
+            )
 
         # Internal testing shape from plan
         data = body.get("data", {}) if isinstance(body, dict) else {}
         message = data.get("message", {}) if isinstance(data, dict) else {}
-        return {
-            "alert_type": body.get("event"),
-            "text": message.get("text", ""),
-            "recipient": message.get("from", {}).get("address")
+        return NormalizedEvent(
+            alert_type=body.get("event"),
+            text=message.get("text", ""),
+            recipient=message.get("from", {}).get("address")
             if isinstance(message.get("from"), dict)
             else None,
-            "message_id": message.get("id"),
-            "group_id": data.get("conversationId") if isinstance(data, dict) else None,
-        }
+            message_id=message.get("id"),
+            group_id=data.get("conversationId") if isinstance(data, dict) else None,
+        )

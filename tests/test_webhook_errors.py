@@ -5,18 +5,20 @@ import pytest
 import respx
 from fastapi.testclient import TestClient
 
-from app.adapters.loop import LoopClient
+from app.adapters.registry import AdapterRegistry
 from tests.conftest import override_generate_reply
 
 
 def headers() -> dict[str, str]:
-    return {"Authorization": "inbound-secret"}
+    return {"Authorization": "Bearer inbound-secret"}
 
 
 @respx.mock
 def test_send_failure_surfaces_502(client: TestClient) -> None:
-    lc = LoopClient()
-    respx.post(lc.send_url).mock(return_value=httpx.Response(500, json={"error": "x"}))
+    adapter = AdapterRegistry.get("loop")
+    respx.post(adapter.send_endpoint()).mock(
+        return_value=httpx.Response(500, json={"error": "x"})
+    )
 
     body = {
         "alert_type": "message_inbound",
@@ -29,7 +31,9 @@ def test_send_failure_surfaces_502(client: TestClient) -> None:
     assert r.status_code == 502
 
 
-def test_agent_failure_surfaces_500(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_agent_failure_surfaces_500(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from app.agents import dspy_agent
 
     def _boom(_: str) -> str:
@@ -43,4 +47,3 @@ def test_agent_failure_surfaces_500(client: TestClient, monkeypatch: pytest.Monk
         json={"alert_type": "message_inbound", "recipient": "+1", "text": "x"},
     )
     assert r.status_code == 500
-

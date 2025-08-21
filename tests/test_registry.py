@@ -1,16 +1,16 @@
 import pytest
 
 from app.adapters.registry import AdapterRegistry
-from app.adapters.base import MessagingAdapter
+from app.types import MessagingAdapter, OutboundMessage, SendResult
 
 
-class DummyAdapter:
+class DummyAdapter(MessagingAdapter):
     def __init__(self) -> None:
         self.sent = []
 
-    def send_text(self, **kwargs):  # type: ignore[no-untyped-def]
-        self.sent.append(kwargs)
-        return {"ok": True}
+    def send_message(self, message: OutboundMessage) -> SendResult:  # type: ignore[override]
+        self.sent.append(message)
+        return SendResult(ok=True)
 
     def verify_request(self, authorization_header):  # type: ignore[no-untyped-def]
         return None
@@ -22,7 +22,7 @@ class DummyAdapter:
 def test_registry_get_and_register() -> None:
     # loop is pre-registered
     adapter = AdapterRegistry.get("loop")
-    assert hasattr(adapter, "send_text")
+    assert hasattr(adapter, "send_message")
 
     # register custom
     AdapterRegistry.register("dummy", DummyAdapter)  # type: ignore[arg-type]
@@ -33,4 +33,3 @@ def test_registry_get_and_register() -> None:
 def test_registry_unknown() -> None:
     with pytest.raises(KeyError):
         AdapterRegistry.get("missing")
-

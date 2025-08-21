@@ -1,39 +1,38 @@
----
- title: Chip the Alabama Tech Community AI Agent
+# Chip the Alabama Tech Community AI Agent
  
  This project uses uv as its package manager.
  
- to install the dependencies, run the following command:
+ ## Installing dependencies
  
  ```bash
  uv sync
  ```
  
- to add a new dependency, run the following command:
+ ## Adding a new dependency
  
  ```bash
  uv add <dependency>
  ```
  
- to remove a dependency, run the following command:
+ ## Removing a dependency
  
  ```bash
  uv remove <dependency>
  ```
  
- to update a dependency, run the following command:
+ ## Updating a dependency
  
  ```bash
  uv update <dependency>
  ```
  
- to export the requirements.txt file, run the following command:
+ ## Exporting the requirements.txt file
  
  ```bash
  uv export --no-hashes -o requirements.txt
  ```
  
- to run the debugger ro this project you need to run the following command:
+ ## Running the debugger
  
  ```bash
  python -m debugpy --listen 5678 --wait-for-client \
@@ -50,7 +49,7 @@ hypercorn main:app --reload --log-level debug
 ## Running tests
 
 ```bash
-uv run pytest -q
+uv run python -m pytest -q
 # or if uv is unavailable
 python -m pytest -q
 ```

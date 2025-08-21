@@ -2,20 +2,23 @@ import os
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from supabase import create_client, Client
-from app.routers.loop_webhook import router as loop_router
+
+from app.routers.messaging import router as messaging_router
 from app.routers.health import router as health_router
 from app.routers.agent_test import router as agent_test_router
 
-load_dotenv()
+if os.environ.get("ENV") != "test":
+    load_dotenv()
 
 url: str | None = os.environ.get("SUPABASE_URL")
 key: str | None = os.environ.get("SUPABASE_KEY")
 supabase: Client | None = None
-if url and key:
-    try:
-        supabase = create_client(url, key)
-    except Exception:
-        supabase = None
+if os.environ.get("ENV") != "test":
+    if url and key:
+        try:
+            supabase = create_client(url, key)
+        except Exception:
+            supabase = None
 
 app = FastAPI()
 
@@ -34,8 +37,9 @@ async def root():
 
 
 # Include routers if available
-if loop_router is not None:
-    app.include_router(loop_router)
+
+if messaging_router is not None:
+    app.include_router(messaging_router)
 
 if health_router is not None:
     app.include_router(health_router)

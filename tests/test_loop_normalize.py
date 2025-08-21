@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.adapters.loop import LoopClient
+from app.adapters.registry import AdapterRegistry
 
 
 def test_normalize_native_inbound() -> None:
@@ -11,12 +11,12 @@ def test_normalize_native_inbound() -> None:
         "message_id": "m1",
         "group": {"group_id": "g1"},
     }
-    lc = LoopClient()
-    norm = lc.normalize_event(body)
-    assert norm["text"] == "Hi"
-    assert norm["recipient"] == "+15551230000"
-    assert norm["message_id"] == "m1"
-    assert norm["group_id"] == "g1"
+    adapter = AdapterRegistry.get("loop")
+    norm = adapter.normalize_event(body)
+    assert norm.text == "Hi"
+    assert norm.recipient == "+15551230000"
+    assert norm.message_id == "m1"
+    assert norm.group_id == "g1"
 
 
 def test_normalize_internal_shape() -> None:
@@ -31,10 +31,9 @@ def test_normalize_internal_shape() -> None:
             },
         },
     }
-    lc = LoopClient()
-    norm = lc.normalize_event(body)
-    assert norm["text"] == "Hello"
-    assert norm["recipient"] == "+15551239999"
-    assert norm["message_id"] == "msg_abc"
-    assert norm["group_id"] == "conv_123"
-
+    adapter = AdapterRegistry.get("loop")
+    norm = adapter.normalize_event(body)
+    assert norm.text == "Hello"
+    assert norm.recipient == "+15551239999"
+    assert norm.message_id == "msg_abc"
+    assert norm.group_id == "conv_123"
