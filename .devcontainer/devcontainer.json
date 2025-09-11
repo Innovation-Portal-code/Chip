@@ -1,0 +1,42 @@
+{
+  "name": "Chip Dev",
+  "runArgs": ["--env-file", "${localWorkspaceFolder}/.env"],
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "VARIANT": "ubuntu-24.04",
+      "UV_VERSION": "0.6.14",
+      "PYTHON_VERSION": "3.13"
+    },
+    "context": "../"
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/workspaces/Chip/.venv/bin/python",
+        "python.testing.pytestEnabled": true,
+        "python.testing.pytestArgs": ["-q", "tests"],
+        "python.formatting.provider": "none",
+        "python.linting.enabled": true,
+        "python.analysis.autoImportCompletions": true,
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "git.enableCommitSigning": false
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "mhutchie.git-graph"
+      ]
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/scripts/post-create.sh",
+  "remoteUser": "vscode",
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "username": "vscode",
+      "installZsh": true,
+      "configureZshAsDefaultShell": true
+    }
+  }
+}

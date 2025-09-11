@@ -1,5 +1,9 @@
 {
   "python.testing.pytestEnabled": true,
-  "python.testing.pytestArgs": ["tests"],
-  "python.formatting.provider": "none"
+  "python.testing.pytestArgs": [
+    "tests"
+  ],
+  "python.formatting.provider": "none",
+  "python.languageServer": "None",
+  "python.testing.unittestEnabled": false
 }
