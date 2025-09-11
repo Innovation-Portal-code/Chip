@@ -44,7 +44,9 @@
  ```bash
  git commit --amend -S --no-edit
  ```
- This will update your last commit to be signed.
+ This will update your last commit to be signed. 
+
+ Or just commit from your local (non-devcontainer) terminal.
 
 
 ## Running tests
