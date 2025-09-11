@@ -35,21 +35,20 @@
  ## Running the debugger
  
  ```bash
- python -m debugpy --listen 5678 --wait-for-client \
- -m hypercorn main:app --reload --log-level debug
+ python -m debugpy --listen 5678 --wait-for-client -m uvicorn main:app --reload --log-level debug
  ```
  and to use the launch.json provided in this project.
 
 ## Running the app
 
 ```bash
-hypercorn main:app --reload --log-level debug
+uv run uvicorn main:app --reload --log-level debug
 ```
 
 ## Starting the app on Railway
 
 ```bash
-hypercorn main:app --bind \"[::]:$PORT\"
+uv run uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
 ## Running tests
