@@ -1,21 +1,17 @@
 ### Next steps to begin executing Plan.md (short, actionable)
 
-- [ ] Foundation: add missing deps in pyproject
-  - pydantic-ai-slim[mcp], logfire, temporalio, twilio (for SMS later), uvicorn (optional)
-  - update project and readme to use uvicorn for dev server
-  - remove dspy-ai dependency
-- [ ] Observability: wire Logfire
+- [DONE] Foundation: add missing deps in pyproject
+  - [DONE] pydantic-ai-slim[mcp], logfire, temporalio, twilio (for SMS later), uvicorn (optional)
+  - [DONE] update project and readme to use uvicorn for dev server
+  - [DONE] remove dspy-ai dependency
+- [DONE] Observability: wire Logfire
   - Initialize at startup, instrument FastAPI, add redaction defaults and correlation ids
-- [ ] Env & DX: create .env.example and quickstart
+- [DONE] Env & DX: create .env.example and quickstart
   - LOOP_AUTHORIZATION, LOOP_SECRET_KEY, LOOP_SENDER_NAME, LOOP_WEBHOOK_AUTH, STATUS_CALLBACK_URL/STATUS_CALLBACK_AUTH, GROQ_API_KEY or OPENAI_API_KEY, SUPABASE_URL/SUPABASE_KEY
 - [ ] Webhook: align handler with tests and Plan
   - Call agent for reply; return {ok, received_text, reply, sent}; keep closed-failure auth
 - [ ] Agent: migrate to Pydantic AI (remove DSPy)
-  - Remove `app/agents/dspy_agent.py` and deprecate `/test/agent` route (replace with simple Pydantic AI ping route if needed)
   - Add minimal Pydantic AI agent module with typed tool (welcome/echo) and system prompt per Plan/Research; swap webhook to call it
-  - Expose agent via injectable interface for tests (dependency override)
-- [ ] Loop adapter: idempotency and headers
-  - Generate and send Idempotency-Key; surface in SendResult for audit
 - [ ] Storage: stub durable writes for inbound/outbound events
   - Define interface + minimal Supabase schema; store raw + normalized payloads
 - [ ] Tests: refactor to new agent and behaviors

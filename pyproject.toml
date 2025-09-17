@@ -19,6 +19,11 @@ dependencies = [
     "twilio",
     "supabase",
     "tiktoken",
+    "opentelemetry-instrumentation-fastapi>=0.57b0",
+    "opentelemetry-instrumentation-httpx>=0.57b0",
+    "opentelemetry-instrumentation-requests>=0.57b0",
+    "opentelemetry-instrumentation-sqlite3>=0.57b0",
+    "opentelemetry-instrumentation-urllib>=0.57b0",
 ]
 
 [dependency-groups]

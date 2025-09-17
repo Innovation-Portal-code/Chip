@@ -47,47 +47,121 @@ If you nevertheless explore a macOS relay, treat the host as a high-sensitivity 
 
 ### LoopMessage (iMessage channel)
 
-LoopMessage provides a server-facing API to send and receive iMessages (with support for SMS fallback strategies you control). It exposes event webhooks for inbound messages, delivery/read receipts, typing indicators, reactions, threads, and group conversations.
+LoopMessage provides a server-facing API to send and receive iMessages (with support for SMS fallback strategies you control). It exposes webhooks for inbound messages and send/delivery status updates, reactions, and group conversations.
 
-LoopMessage adds a server-facing abstraction for iMessage delivery and receipt, supporting text and attachments to Apple IDs and phone numbers while preserving the rich interaction surface of the channel. Beyond simple sends, it exposes typing indicators, read receipts, reactions (tapbacks), audio and image/video messages, and the constructs needed for threads and group chats. Operationally, it publishes webhooks for events such as message creation, delivery, read acknowledgments, typing starts and stops, reactions, participant joins and leaves, and thread lifecycle changes, enabling a fully event-driven integration. While iMessage remains end-to-end encrypted between devices, any macOS relay or provider agent you use to bridge server-side logic to the client must be treated as a privileged boundary and hardened accordingly.
+LoopMessage adds a server-facing abstraction for iMessage delivery and receipt, supporting text and attachments to Apple IDs and phone numbers while preserving the rich interaction surface of the channel. Beyond simple sends, it supports reactions (tapbacks), audio and image/video messages, and the constructs needed for reply threads and group chats. Operationally, it publishes webhooks with `alert_type` values such as `message_inbound`, `message_sent`, `message_failed`, `message_scheduled`, `message_timeout`, `message_reaction`, `conversation_inited`, `group_created`, and `inbound_call`, enabling a fully event-driven integration. While iMessage remains end-to-end encrypted between devices, any macOS relay or provider agent you use to bridge server-side logic to the client must be treated as a privileged boundary and hardened accordingly.
 
 A pragmatic reliability strategy starts with progressive fallback: prefer iMessage when available, but on explicit failures, timeouts, or unreachable devices, degrade to SMS via Twilio—or to WhatsApp if the user has consented to that channel—and make this behavior transparent to users to preserve trust. Protect against duplication by attaching an idempotency key to every send so that retried or fallback deliveries can be safely de-duplicated downstream. Maintain per-user channel preferences, including quiet hours and regional rules, and continuously monitor the health of any macOS relay or provider agent with heartbeats and alerting so you can automatically drain traffic to SMS if health degrades. Persist send attempts, statuses, and fallback decisions to create an auditable trail for support and post-incident analysis.
 
 Typed webhook example (LoopMessage)
 ```python
-from pydantic import BaseModel, HttpUrl, Field
-from typing import Literal, Optional
+from pydantic import BaseModel, HttpUrl
+from typing import Literal, Optional, List
 
-EventType = Literal[
-    "message_created", "message_delivered", "message_read",
-    "typing_started", "typing_stopped", "reaction_added",
-    "participant_joined", "participant_left", "thread_started"
+AlertType = Literal[
+    "message_scheduled",
+    "conversation_inited",
+    "message_failed",
+    "message_sent",
+    "message_inbound",
+    "message_reaction",
+    "message_timeout",
+    "group_created",
+    "inbound_call",
+    "unknown",
 ]
 
-class LoopMessageParticipant(BaseModel):
-    id: str
-    display_name: Optional[str] = None
+MessageType = Literal["text", "reaction", "audio", "attachments", "sticker", "location"]
+DeliveryType = Literal["imessage", "sms"]
+ReactionType = Literal["love", "like", "dislike", "laugh", "exclaim", "question", "unknown"]
 
-class LoopMessageAttachment(BaseModel):
-    url: HttpUrl
-    content_type: str
-    bytes: Optional[int] = None
+class Language(BaseModel):
+    code: str
+    name: Optional[str] = None
+    script: Optional[Literal["Hans", "Hant"]] = None
 
-class LoopMessagePayload(BaseModel):
-    channel: Literal["imessage"] = "imessage"
-    conversation_id: str
-    thread_id: Optional[str] = None
-    message_id: Optional[str] = None
-    from_user: LoopMessageParticipant
-    to_user: Optional[LoopMessageParticipant] = None
+class SpeechMetadata(BaseModel):
+    speaking_rate: Optional[float] = None
+    average_pause_duration: Optional[float] = None
+    speech_start_timestamp: Optional[float] = None
+    speech_duration: Optional[float] = None
+    jitter: Optional[float] = None
+    shimmer: Optional[float] = None
+    pitch: Optional[float] = None
+    voicing: Optional[float] = None
+
+class Speech(BaseModel):
+    text: str
+    language: Optional[Language] = None
+    metadata: Optional[SpeechMetadata] = None
+
+class Group(BaseModel):
+    group_id: str
+    name: Optional[str] = None
+    participants: List[str] = []
+
+class WebhookEvent(BaseModel):
+    alert_type: AlertType
+    recipient: Optional[str] = None
     text: Optional[str] = None
-    attachments: list[LoopMessageAttachment] = []
+    subject: Optional[str] = None
+    attachments: Optional[List[HttpUrl]] = None  # only for message_inbound
+    message_type: Optional[MessageType] = None   # inbound/reaction
+    delivery_type: Optional[DeliveryType] = None
+    reaction: Optional[ReactionType] = None      # only for message_reaction
+    thread_id: Optional[str] = None
+    sandbox: Optional[bool] = None
+    sender_name: Optional[str] = None
+    error_code: Optional[int] = None             # failed/timeout
+    passthrough: Optional[str] = None
+    language: Optional[Language] = None
+    group: Optional[Group] = None                # only for group_created
+    speech: Optional[Speech] = None              # inbound audio transcription
+    success: Optional[bool] = None               # only for message_sent
+    message_id: Optional[str] = None
+    webhook_id: Optional[str] = None
+    api_version: Optional[str] = None
+```
 
-class LoopMessageWebhook(BaseModel):
-    event: EventType
-    payload: LoopMessagePayload
-    created_at: str
-    signature: str
+Sample webhook events (per LoopMessage docs)
+```json
+{
+  "alert_type": "message_inbound",
+  "recipient": "+13231112233",
+  "text": "text",
+  "message_type": "text",
+  "message_id": "59c55Ce8-41d6-43Cc-9116-8cfb2e696D7b",
+  "webhook_id": "ab5Ae733-cCFc-4025-9987-7279b26bE71b",
+  "api_version": "1.0"
+}
+```
+
+```json
+{
+  "alert_type": "message_sent",
+  "success": true,
+  "recipient": "+13231112233",
+  "text": "text",
+  "message_id": "59c55Ce8-41d6-43Cc-9116-8cfb2e696D7b",
+  "webhook_id": "ab5Ae733-cCFc-4025-9987-7279b26bE71b",
+  "api_version": "1.0"
+}
+```
+
+```json
+{
+  "alert_type": "group_created",
+  "group": {
+    "group_id": "59c55Ce8-41d6-43Cc-9116-8cfb2e696D7b",
+    "name": "Group name",
+    "participants": ["+13231112233", "+13233332211", "[email protected]"]
+  },
+  "recipient": "+13231112233",
+  "sender_name": "[email protected]",
+  "text": "text",
+  "message_id": "59c55Ce8-41d6-43Cc-9116-8cfb2e696D7b",
+  "webhook_id": "ab5Ae733-cCFc-4025-9987-7279b26bE71b"
+}
 ```
 
 Sending an iMessage via LoopMessage
@@ -112,7 +186,7 @@ async def send_imessage(recipient: str, text: str, *, idempotency_key: str) -> d
         return r.json()
 ```
 
-Group chats and thread continuity depend on stable identifiers: use the `conversation_id` and, when present, a `thread_id` from webhook payloads to maintain consistent threading and state. Keep participant rosters current so that consented introductions and multi-party conversations honor membership and privacy expectations across joins and leaves.
+Group chats and thread continuity depend on stable identifiers: use the `group.group_id` for group chats (you can use this value as the contact/recipient in send requests) and, when present, the `thread_id` from webhook payloads to maintain reply-to context. Keep participant rosters current so that consented introductions and multi-party conversations honor membership and privacy expectations across joins and leaves.
 
 Operational security should treat the macOS relay or provider agent as a privileged boundary with restricted console and log access. Avoid storing message bodies in plaintext logs; rotate credentials regularly; prefer hardware-backed secrets; enforce strict SSH key policies; and monitor for configuration drift and OS updates that could weaken your posture or break integration.
 
